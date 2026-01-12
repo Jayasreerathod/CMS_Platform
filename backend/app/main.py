@@ -4,6 +4,9 @@ from app.api import auth, cms, catalog
 
 app = FastAPI(title="LessonCMS")
 
+@app.get("/")
+def root():
+    return {"message": "Welcome to LessonCMS API"}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
