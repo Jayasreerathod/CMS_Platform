@@ -4,3 +4,5 @@ sqlalchemy
 python-jose
 passlib[bcrypt]
 pydantic
+gunicorn
+uvicorn[standard]
