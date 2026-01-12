@@ -1,0 +1,46 @@
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+.env
+.DS_Store
+Thumbs.db
+
+# Python / FastAPI Backend
+
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/alembic/__pycache__/
+backend/lesson_cms.db
+backend/lessons_cms.db
+backend/.pytest_cache/
+*.log
+
+venv/
+env/
+
+# Node / React Frontend
+
+frontend/node_modules/
+frontend/.env
+frontend/.vite/
+frontend/dist/
+frontend/.DS_Store
+
+# IDE / Editor Files
+
+.vscode/
+.idea/
+*.iml
+
+# OS / Misc
+
+*.bak
+*.tmp
+*.swp
+*.swo
