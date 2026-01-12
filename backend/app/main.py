@@ -7,6 +7,12 @@ app = FastAPI(title="LessonCMS")
 @app.get("/")
 def root():
     return {"message": "Welcome to LessonCMS API"}
+
+origins = [
+    "https://cms-platform-phi.vercel.app",  # your main frontend
+    "https://cms-platform-4hq4cij8t-jayasree-rathods-projects.vercel.app",  # preview builds
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,6 +20,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include routes
 app.include_router(auth.router)
