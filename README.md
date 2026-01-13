@@ -1,4 +1,4 @@
-##LessonCMS — Full Stack Content Management Platform
+## LessonCMS — Full Stack Content Management Platform
 
 A full-stack CMS for managing lessons and publishing them to a public catalog.
 Built with FastAPI + PostgreSQL + SQLAlchemy + React (Vite) + Tailwind.
@@ -16,7 +16,7 @@ Deployed using Render (backend) and Vercel (frontend).
             ┌───────────────┴──────────────────────────────────┐
             │                    BACKEND                       │
             │ FastAPI + SQLAlchemy + Alembic                   │
-            │ Auth (RBAC: Admin / Editor / Viewer)             │
+            │ Auth (RBAC: Admin / Editor )             │
             │ CRUD for Programs / Lessons                      │
             │ Scheduled publishing via Background Worker       │
             │ Deployed on Render                               │
@@ -38,8 +38,8 @@ cd CMS_Platform
 ## Backend Setup 
 cd backend
 python -m venv venv
+
 venv\Scripts\activate     # on Windows
-# source venv/bin/activate  # on macOS/Linux
 pip install -r requirements.txt
 
 ## Run Database Migration 
@@ -53,16 +53,42 @@ alembic upgrade head
 python seed_data.py
 
 This creates:
-Programs: Python Basics, Advanced React
-Lessons under each program
+2 Programs: Python Basics, Advanced React
+6 Lessons under the programs
+One lesson scheduled to publish automatically (worker demo)
+Multi-language and assets examples included
 
 ## Test users:
 admin@cms.com / admin123
 editor@cms.com / editor123
-viewer@cms.com / viewer123
 
-## Run Backend Server 
+### Before Frontend Login
+
+Before logging in from the frontend, first confirm backend authentication works correctly:
+
+Open backend docs:
+ https://cms-platform-backend.onrender.com/docs
+
+Expand POST /auth/login
+
+Test login with the above credentials
+
+Once you receive a valid token and role, proceed to login through the frontend
+
+## Run Backend Locally 
 uvicorn app.main:app --reload
+
+Local API will run on:
+http://127.0.0.1:8000
+Docs available at: http://127.0.0.1:8000/docs
+
+## Frontend Setup (Optional Local Run)
+cd frontend
+npm install
+npm run dev
+
+## Configure .env in the frontend
+VITE_API_BASE_URL=https://cms-platform-backend.onrender.com
 
 ## Deployed URLs 
     
@@ -72,26 +98,31 @@ uvicorn app.main:app --reload
 
 ## Demo Flow
 
-1️ Login as Editor
+1. Authenticate via Backend (Recommended First Step)
+    Go to  https://cms-platform-backend.onrender.com/docs
+    Under POST /auth/login, test credentials:
+    admin@cms.com / admin123
+    editor@cms.com / editor123
+    Confirm you receive a valid token and role in the response.
+    Once verified, proceed to frontend login.
 
-    Go to frontend login
-
+2 Login as Editor or Admin
+    Go to frontend login page
     Use admin@cms.com / admin123
+    or editor@cms.com / editor123
 
-2️ Create or Edit a Lesson/Program
-
+3 Create or Edit a Lesson/Program
     Navigate to CMS Dashboard
+    Add a new Program and Lessons
 
-    Add a new lesson, set it to draft
+4 Schedule or Publish the Program
+    Editors can schedule lessons for future publishing
+    Admins can publish 
+    
+5 Worker Executes
+    A background worker checks for scheduled lessons
+    Once time is reached → lessons auto-publish
 
-3️ Publish the Program
-
-4️ Worker Executes
-
-    Background worker marks lessons as “published” after scheduled time
-
-5️ Verify
-
+6 Verify
     Revisit Public Catalog
-
     Published lessons now visible to everyone
