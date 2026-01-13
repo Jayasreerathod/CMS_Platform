@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.database import get_db
@@ -6,17 +6,35 @@ from app.models_program import Program, Lesson, StatusEnum
 
 router = APIRouter(tags=["CMS"])
 
-# --- Dummy auth for testing (replace with JWT in full app) ---
+# -------------------------------
+# ROLE-BASED ACCESS CONTROL (RBAC)
+# -------------------------------
 def get_current_user():
-    return {"role": "admin"}  # simulate admin by default
+    """
+    Temporary role simulation.
+    You can later connect this to real JWT auth (admin@cms.com / editor@cms.com).
+    """
+    return {"email": "editor@cms.com", "role": "editor"}  # or admin
+
+def require_role(required_role: str):
+    def checker(user=Depends(get_current_user)):
+        if user["role"] != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"{required_role.capitalize()} role required.",
+            )
+        return user
+    return checker
 
 def require_admin_or_editor(user=Depends(get_current_user)):
     if user["role"] not in ["admin", "editor"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     return user
 
+# -------------------------------
+# PROGRAM ENDPOINTS
+# -------------------------------
 
-# ---------------- Programs ----------------
 @router.get("/programs")
 def list_programs(db: Session = Depends(get_db)):
     programs = db.query(Program).all()
@@ -44,7 +62,7 @@ def create_program(
 def publish_program(
     program_id: str,
     db: Session = Depends(get_db),
-    user=Depends(require_admin_or_editor),
+    user=Depends(require_role("admin")),  #  only admin can publish
 ):
     program = db.query(Program).filter(Program.id == program_id).first()
     if not program:
@@ -54,6 +72,34 @@ def publish_program(
     db.commit()
     db.refresh(program)
     return {"message": "Program published", "program": program}
+
+
+@router.post("/programs/{program_id}/schedule")
+def schedule_program_publish(
+    program_id: str,
+    data: dict,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("editor")),  #  only editors schedule
+):
+    """Schedule a program to be auto-published later."""
+    publish_at_str = data.get("publish_at")
+    if not publish_at_str:
+        raise HTTPException(status_code=400, detail="publish_at is required")
+
+    try:
+        publish_at = datetime.fromisoformat(publish_at_str)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid datetime format")
+
+    program = db.query(Program).filter(Program.id == program_id).first()
+    if not program:
+        raise HTTPException(status_code=404, detail="Program not found")
+
+    program.status = StatusEnum.scheduled
+    program.published_at = publish_at
+    db.commit()
+    db.refresh(program)
+    return {"message": f"Program scheduled for {publish_at}", "program": program}
 
 
 @router.delete("/programs/{program_id}")
@@ -78,8 +124,10 @@ def get_program_details(program_id: str, db: Session = Depends(get_db)):
     lessons = db.query(Lesson).filter(Lesson.program_id == program_id).all()
     return {"program": program, "lessons": lessons or []}
 
+# -------------------------------
+# LESSON ENDPOINTS
+# -------------------------------
 
-# ---------------- Lessons ----------------
 @router.post("/programs/{program_id}/lessons")
 def add_lesson(
     program_id: str,

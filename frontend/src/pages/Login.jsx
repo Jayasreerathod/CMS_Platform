@@ -1,50 +1,48 @@
 import { useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  async function handleLogin(e) {
     e.preventDefault();
     setError("");
 
     try {
-      //  Send JSON instead of form-encoded
-      const res = await axios.post("http://127.0.0.1:8000/auth/login", {
-        email: email,
-        password: password,
-      });
+      const res = await api.post("/auth/login", { email, password });
 
-      //  Match backend response keys
+      // Save token + role in localStorage
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.role);
 
-      //  Redirect based on role (optional)
-      window.location.href = "/programs";
+      alert(`Welcome ${res.data.role}!`);
+      navigate("/programs");
     } catch (err) {
       console.error("Login failed:", err);
       setError("Invalid username or password");
     }
-  };
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
       <form
         onSubmit={handleLogin}
-        className="bg-gray-900 p-8 rounded-lg shadow-md w-80"
+        className="bg-gray-800 p-8 rounded-lg shadow-lg w-80"
       >
-        <h2 className="text-2xl font-bold mb-6 text-center text-indigo-400">
+        <h2 className="text-2xl font-bold text-center text-indigo-400 mb-6">
           Login
         </h2>
 
         <input
-          type="text"
+          type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-4 p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
+          className="w-full p-2 mb-4 bg-gray-700 rounded border border-gray-600 focus:outline-none"
         />
 
         <input
@@ -52,14 +50,14 @@ export default function Login() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-4 p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
+          className="w-full p-2 mb-4 bg-gray-700 rounded border border-gray-600 focus:outline-none"
         />
 
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
         <button
           type="submit"
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition"
+          className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded"
         >
           Login
         </button>

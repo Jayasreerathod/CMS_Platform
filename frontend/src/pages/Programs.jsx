@@ -6,6 +6,7 @@ export default function Programs() {
   const [programs, setPrograms] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [scheduleTime, setScheduleTime] = useState(""); 
   const role = localStorage.getItem("role");
   const token = localStorage.getItem("token");
 
@@ -40,7 +41,7 @@ export default function Programs() {
     }
   }
 
-  // Publish a program
+  // Publish immediately (admin only)
   async function handlePublish(id) {
     try {
       await api.post(
@@ -53,6 +54,23 @@ export default function Programs() {
     } catch (err) {
       console.error(err);
       alert("Failed to publish program");
+    }
+  }
+
+  //  Schedule publish (editor only)
+  async function handleSchedule(id) {
+    if (!scheduleTime) return alert("Please select a date & time first.");
+    try {
+      await api.post(
+        `/cms/programs/${id}/schedule`,
+        { publish_at: scheduleTime },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(`Program scheduled for ${scheduleTime}`);
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to schedule program");
     }
   }
 
@@ -75,7 +93,7 @@ export default function Programs() {
     <div className="p-8 text-white">
       <h1 className="text-3xl font-bold text-indigo-400 mb-6">Programs</h1>
 
-      {/* Show Add Form only for Admin/Editor */}
+      {/* Add Form for Admin/Editor */}
       {(role === "admin" || role === "editor") && (
         <div className="flex flex-wrap gap-3 mb-6">
           <input
@@ -137,22 +155,43 @@ export default function Programs() {
               </Link>
 
               {(role === "admin" || role === "editor") && (
-                <>
-                  {p.status !== "published" && (
+                <div className="mt-3 flex flex-col gap-2">
+                  {/* Admin - Publish */}
+                  {role === "admin" && p.status !== "published" && (
                     <button
                       onClick={() => handlePublish(p.id)}
-                      className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm mr-2"
+                      className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
                     >
-                      Publish
+                      Publish Now
                     </button>
                   )}
+
+                  {/* Editor - Schedule */}
+                  {role === "editor" && (
+                    <div>
+                      <input
+                        type="datetime-local"
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        className="p-1 bg-gray-700 text-sm rounded border border-gray-600 mb-1"
+                      />
+                      <button
+                        onClick={() => handleSchedule(p.id)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded text-sm"
+                      >
+                        Schedule Publish
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Delete */}
                   <button
                     onClick={() => handleDelete(p.id)}
                     className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm"
                   >
                     Delete
                   </button>
-                </>
+                </div>
               )}
             </div>
           ))}
