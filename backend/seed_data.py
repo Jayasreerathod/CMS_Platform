@@ -12,11 +12,18 @@ from app.models_program import (
     AssetTypeEnum,
 )
 
-# Recreate database schema
-Base.metadata.drop_all(bind=engine)
+# --- Ensure tables exist (don’t drop existing data) ---
 Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
+
+# --- Skip seeding if data already exists ---
+if db.query(Program).first():
+    print(" Database already has programs — skipping seed.")
+    db.close()
+    exit()
+
+print("🌱 Seeding new data into Render database...")
 
 # -------------------------------------------------------------------
 #  PROGRAMS
@@ -35,7 +42,7 @@ program_react = Program(
     description="Deep dive into React components, hooks, and performance.",
     language_primary="en",
     languages_available=["en"],
-    status=StatusEnum.published,  # Make this published now
+    status=StatusEnum.published,
     published_at=datetime.now(UTC),
 )
 
@@ -92,7 +99,7 @@ lessons = [
         content_language_primary="en",
         content_languages_available=["en"],
         content_urls_by_language={"en": "https://cdn.demo/python_controlflow.html"},
-        status=StatusEnum.published,  #  changed from draft
+        status=StatusEnum.published,
         published_at=datetime.now(UTC),
     ),
     Lesson(
@@ -104,7 +111,7 @@ lessons = [
         content_language_primary="en",
         content_languages_available=["en"],
         content_urls_by_language={"en": "https://cdn.demo/react_hooks.mp4"},
-        status=StatusEnum.published,  # changed from draft
+        status=StatusEnum.published,
         published_at=datetime.now(UTC),
     ),
     Lesson(
@@ -127,10 +134,8 @@ db.commit()
 # -------------------------------------------------------------------
 #  ASSETS
 # -------------------------------------------------------------------
-assets = []
-
-# Posters for Programs
-assets += [
+assets = [
+    # Posters for Programs
     ProgramAsset(
         program_id=program_python.id,
         language="en",
@@ -163,29 +168,27 @@ assets += [
 
 # Thumbnails for Lessons
 for lesson in lessons:
-    assets.append(
+    assets.extend([
         LessonAsset(
             lesson_id=lesson.id,
             language=lesson.content_language_primary,
             variant=AssetVariantEnum.portrait,
             asset_type=AssetTypeEnum.thumbnail,
             url=f"https://cdn.demo/thumbnails/{lesson.title.replace(' ', '_')}_portrait.jpg",
-        )
-    )
-    assets.append(
+        ),
         LessonAsset(
             lesson_id=lesson.id,
             language=lesson.content_language_primary,
             variant=AssetVariantEnum.landscape,
             asset_type=AssetTypeEnum.thumbnail,
             url=f"https://cdn.demo/thumbnails/{lesson.title.replace(' ', '_')}_landscape.jpg",
-        )
-    )
+        ),
+    ])
 
 db.add_all(assets)
 db.commit()
 
-print("Seed data created successfully!")
+print(" Seed data created successfully!")
 print(f"Programs: {[p.title for p in db.query(Program).all()]}")
 print("Lessons added and published successfully!")
 

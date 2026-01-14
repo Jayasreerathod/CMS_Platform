@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
+from app.models_program import Program
 from app.api import auth, cms, catalog
 import threading
 from app.worker import start_worker  # background publisher
+from seed_data import main as run_seed
 
 # ---------------------------------------------------------
 # Initialize FastAPI app
@@ -38,15 +40,23 @@ app.include_router(catalog.router, prefix="/catalog")
 # ---------------------------------------------------------
 @app.on_event("startup")
 def start_background_worker():
-    # Ensure tables exist (but don't drop them anymore!)
-    Base.metadata.create_all(bind=engine)
-    print(" Database schema ensured.")
+    # --- Auto-run seeding logic ---
+    try:
+        db = SessionLocal()
+        if not db.query(Program).first():
+            print(" programs found — running auto-seed...")
+            run_seed()
+            print("Auto-seed complete.")
+        else:
+            print("rograms already exist — skipping auto-seed.")
+        db.close()
+    except Exception as e:
+        print(f"Auto-seed failed: {e}")
 
-    # Start the background worker safely
+    # --- Start background publishing worker ---
     thread = threading.Thread(target=start_worker, daemon=True)
     thread.start()
-    print(" Background worker started successfully!")
-
+    print("Background worker thread started successfully!")
 
 @app.get("/")
 def home():
