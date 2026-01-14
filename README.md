@@ -1,33 +1,55 @@
 ## LessonCMS — Full Stack Content Management Platform
 
-A full-stack CMS for managing lessons and publishing them to a public catalog.
-Built with FastAPI + PostgreSQL + SQLAlchemy + React (Vite) + Tailwind.
-Deployed using Render (backend) and Vercel (frontend).
+A full-stack Lesson Content Management System (LessonCMS) built using FastAPI, React (Vite), and PostgreSQL.
+It allows admins to manage educational programs, terms, and lessons — with automatic publishing handled in the background.
 
 ## Architecture Overview
 
-            ┌──────────────────────────────────────────────────┐
-            │                     FRONTEND                     │
-            │ React + Vite + Tailwind                          │
-            │ Deployed on Vercel                               │
-            │ Calls REST API via Axios                         │
-            └───────────────▲──────────────────────────────────┘
-                            │ HTTPS (CORS enabled)
-            ┌───────────────┴──────────────────────────────────┐
-            │                    BACKEND                       │
-            │ FastAPI + SQLAlchemy + Alembic                   │
-            │ Auth (RBAC: Admin / Editor )             │
-            │ CRUD for Programs / Lessons                      │
-            │ Scheduled publishing via Background Worker       │
-            │ Deployed on Render                               │
-            └───────────────▲──────────────────────────────────┘
-                            │ SQLAlchemy ORM
-            ┌───────────────┴──────────────────────────────────┐
-            │                   DATABASE                       │
-            │ PostgreSQL (Render Datastore)                    │
-            │ Tables: users, programs, lessons, schedules      │
-            │ Constraints, indexes, timestamps, relations      │
-            └──────────────────────────────────────────────────┘
+            ┌──────────────────────────────────────────────────────────────┐
+            │                        FRONTEND (Vercel)                     │
+            │──────────────────────────────────────────────────────────────│
+            │ • React + Vite + Tailwind CSS                                │
+            │ • Axios calls backend REST APIs                              │
+            │ • Displays Programs, Lessons & Publish Actions (CMS UI)      │
+            │ • Deployed on: https://<your-vercel-app>.vercel.app          │
+            └──────────────▲───────────────────────────────────────────────┘
+                        │ HTTPS (CORS enabled via FastAPI Middleware)
+                        │
+            ┌──────────────┴──────────────────────────────────────────────-┐
+            │                        BACKEND (Render)                      │
+            │──────────────────────────────────────────────────────────────│
+            │ • FastAPI + SQLAlchemy ORM                                   │
+            │ • REST API Endpoints: Auth, CMS, Catalog                     │
+            │ • Role-based Access Control (Admin / Editor)                 │
+            │ • Seed script auto-runs at startup if DB empty               │
+            │ • Background Worker runs every 60s for scheduled publishing  │
+            │ • Deployed on: https://cms-platform-backend.onrender.com     │
+            └──────────────▲───────────────────────────────────────────────┘
+                        │ SQLAlchemy ORM + psycopg2 (DB Driver)
+                        │
+            ┌──────────────┴──────────────────────────────────────────────┐
+            │                    DATABASE (PostgreSQL - Render)           │
+            │─────────────────────────────────────────────────────────────│
+            │ • Hosted in Render Datastore                                │
+            │ • Tables: programs, terms, lessons, users, assets           │
+            │ • Seed data auto-created (Python Basics, Advanced React)    │
+            │ • Constraints, enums & timestamps for all relations         │
+            └─────────────────────────────────────────────────────────────┘
+
+
+## Tech Stack
+
+# Backend
+FastAPI (Python)
+SQLAlchemy ORM
+PostgreSQL (hosted on Render)
+Gunicorn + Uvicorn (production server)
+Background worker for scheduled lesson publishing
+
+# Frontend
+React (Vite)
+Axios for API communication
+Hosted on Vercel
 
 ##  Local Setup
 
@@ -40,6 +62,8 @@ cd backend
 python -m venv venv
 
 venv\Scripts\activate     # on Windows
+
+## Install Dependencies
 pip install -r requirements.txt
 
 ## Run Database Migration 
@@ -57,6 +81,13 @@ This creates:
 6 Lessons under the programs
 One lesson scheduled to publish automatically (worker demo)
 Multi-language and assets examples included
+
+## Database Seeding
+( To add initial demo programs and lessons:)
+
+set DATABASE_URL=postgresql://<user>:<password>@<host>/<db_name>
+python seed_data.py
+
 
 ## Test users:
 admin@cms.com / admin123
@@ -85,7 +116,7 @@ Docs available at: http://127.0.0.1:8000/docs
 ## Frontend Setup (Optional Local Run)
 cd frontend
 npm install
-npm run dev
+npm run preview
 
 ## Configure .env in the frontend
 VITE_API_BASE_URL=https://cms-platform-backend.onrender.com
@@ -98,31 +129,27 @@ VITE_API_BASE_URL=https://cms-platform-backend.onrender.com
 
 ## Demo Flow
 
-1. Authenticate via Backend (Recommended First Step)
-    Go to  https://cms-platform-backend.onrender.com/docs
-    Under POST /auth/login, test credentials:
-    admin@cms.com / admin123
-    editor@cms.com / editor123
-    Confirm you receive a valid token and role in the response.
-    Once verified, proceed to frontend login.
-
-2 Login as Editor or Admin
+1 Login as Editor or Admin
     Go to frontend login page
-    Use admin@cms.com / admin123
-    or editor@cms.com / editor123
+    Use the demo credentials:
+        Admin : admin@cms.com / admin123
+        Editor: editor@cms.com / editor123
 
-3 Create or Edit a Lesson/Program
+2  Create or Edit a Lesson/Program
     Navigate to CMS Dashboard
-    Add a new Program and Lessons
+    Add a new Program and its associated Lessons
 
-4 Schedule or Publish the Program
+3 Schedule or Publish the Program
     Editors can schedule lessons for future publishing
-    Admins can publish 
+    Admins can immediately publish programs using the Publish button
+    When published, the status changes to published and appears in the public catalog 
     
-5 Worker Executes
-    A background worker checks for scheduled lessons
-    Once time is reached → lessons auto-publish
+4 Background Worker Executes Automatically
+    A background worker runs every 60 seconds on the backend
+    Once the scheduled time is reached →
+    The lesson and its parent program are automatically published
 
-6 Verify
-    Revisit Public Catalog
-    Published lessons now visible to everyone
+5 Verify
+    Revisit Public Catalog(frontend)
+    You’ll now see all published lessons and programs available to all users
+    Scheduled lessons appear automatically once their time is reached
