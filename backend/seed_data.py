@@ -126,7 +126,8 @@ lessons = [
         content_language_primary="en",
         content_languages_available=["en"],
         content_urls_by_language={"en": "https://cdn.demo/react_hooks.mp4"},
-        status=StatusEnum.draft,
+        status=StatusEnum.published,
+        published_at=datetime.now(UTC),
         thumbnail_assets_by_language={
             "en": {
                 "portrait": "https://cdn.demo/thumbnails/react_hooks_portrait_en.jpg",
