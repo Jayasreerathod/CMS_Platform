@@ -221,3 +221,16 @@ else:
 print("\n Seed completed successfully!")
 print(f"Programs now in DB: {[p.title for p in db.query(Program).all()]}")
 db.close()
+
+def main():
+    """Allows other scripts (like main.py) to call the seeder directly."""
+    # Just re-run this same file’s logic
+    from seed_data import (
+        Base, engine, SessionLocal, Program, Term, Lesson, ProgramAsset, LessonAsset,
+        StatusEnum, ContentTypeEnum, AssetVariantEnum, AssetTypeEnum
+    )
+    # Nothing else needed — Python will just re-import and execute above logic
+
+
+if __name__ == "__main__":
+    main()
