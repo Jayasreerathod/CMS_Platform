@@ -133,7 +133,7 @@ class Lesson(Base):
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    thumbnail_assets_by_language = Column(JSON, default={})
+    thumbnail_assets_by_language = Column(JSON, nullable=True, default={})
     # Relationships
     program = relationship("Program", back_populates="lessons")
     term = relationship("Term", back_populates="lessons")

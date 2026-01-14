@@ -1,6 +1,16 @@
 from datetime import datetime, timedelta, UTC
 from app.database import SessionLocal, engine, Base
-from app.models_program import Program, Term, Lesson, StatusEnum, ContentTypeEnum
+from app.models_program import (
+    Program,
+    Term,
+    Lesson,
+    ProgramAsset,
+    LessonAsset,
+    StatusEnum,
+    ContentTypeEnum,
+    AssetVariantEnum,
+    AssetTypeEnum,
+)
 
 # Recreate database schema
 Base.metadata.drop_all(bind=engine)
@@ -18,16 +28,6 @@ program_python = Program(
     languages_available=["en", "hi"],
     status=StatusEnum.published,
     published_at=datetime.now(UTC),
-    poster_assets_by_language={
-        "en": {
-            "portrait": "https://cdn.demo/assets/python_poster_portrait_en.jpg",
-            "landscape": "https://cdn.demo/assets/python_poster_landscape_en.jpg",
-        },
-        "hi": {
-            "portrait": "https://cdn.demo/assets/python_poster_portrait_hi.jpg",
-            "landscape": "https://cdn.demo/assets/python_poster_landscape_hi.jpg",
-        },
-    },
 )
 
 program_react = Program(
@@ -35,13 +35,8 @@ program_react = Program(
     description="Deep dive into React components, hooks, and performance.",
     language_primary="en",
     languages_available=["en"],
-    status=StatusEnum.draft,
-    poster_assets_by_language={
-        "en": {
-            "portrait": "https://cdn.demo/assets/react_poster_portrait_en.jpg",
-            "landscape": "https://cdn.demo/assets/react_poster_landscape_en.jpg",
-        }
-    },
+    status=StatusEnum.published,  # Make this published now
+    published_at=datetime.now(UTC),
 )
 
 db.add_all([program_python, program_react])
@@ -74,12 +69,6 @@ lessons = [
         },
         status=StatusEnum.published,
         published_at=datetime.now(UTC),
-        thumbnail_assets_by_language={
-            "en": {
-                "portrait": "https://cdn.demo/thumbnails/python_intro_portrait_en.jpg",
-                "landscape": "https://cdn.demo/thumbnails/python_intro_landscape_en.jpg",
-            }
-        },
     ),
     Lesson(
         program_id=program_python.id,
@@ -93,12 +82,6 @@ lessons = [
         content_urls_by_language={"en": "https://cdn.demo/python_datatypes_en.mp4"},
         status=StatusEnum.published,
         published_at=datetime.now(UTC),
-        thumbnail_assets_by_language={
-            "en": {
-                "portrait": "https://cdn.demo/thumbnails/python_datatypes_portrait_en.jpg",
-                "landscape": "https://cdn.demo/thumbnails/python_datatypes_landscape_en.jpg",
-            }
-        },
     ),
     Lesson(
         program_id=program_python.id,
@@ -109,13 +92,8 @@ lessons = [
         content_language_primary="en",
         content_languages_available=["en"],
         content_urls_by_language={"en": "https://cdn.demo/python_controlflow.html"},
-        status=StatusEnum.draft,
-        thumbnail_assets_by_language={
-            "en": {
-                "portrait": "https://cdn.demo/thumbnails/python_controlflow_portrait_en.jpg",
-                "landscape": "https://cdn.demo/thumbnails/python_controlflow_landscape_en.jpg",
-            }
-        },
+        status=StatusEnum.published,  #  changed from draft
+        published_at=datetime.now(UTC),
     ),
     Lesson(
         program_id=program_react.id,
@@ -126,14 +104,8 @@ lessons = [
         content_language_primary="en",
         content_languages_available=["en"],
         content_urls_by_language={"en": "https://cdn.demo/react_hooks.mp4"},
-        status=StatusEnum.published,
+        status=StatusEnum.published,  # changed from draft
         published_at=datetime.now(UTC),
-        thumbnail_assets_by_language={
-            "en": {
-                "portrait": "https://cdn.demo/thumbnails/react_hooks_portrait_en.jpg",
-                "landscape": "https://cdn.demo/thumbnails/react_hooks_landscape_en.jpg",
-            }
-        },
     ),
     Lesson(
         program_id=program_react.id,
@@ -146,12 +118,6 @@ lessons = [
         content_urls_by_language={"en": "https://cdn.demo/react_optimize.mp4"},
         status=StatusEnum.scheduled,
         publish_at=datetime.now(UTC) + timedelta(minutes=2),
-        thumbnail_assets_by_language={
-            "en": {
-                "portrait": "https://cdn.demo/thumbnails/react_optimize_portrait_en.jpg",
-                "landscape": "https://cdn.demo/thumbnails/react_optimize_landscape_en.jpg",
-            }
-        },
     ),
 ]
 
@@ -159,11 +125,68 @@ db.add_all(lessons)
 db.commit()
 
 # -------------------------------------------------------------------
-#  SUMMARY
+#  ASSETS
 # -------------------------------------------------------------------
-print(" Seed data created successfully!")
+assets = []
+
+# Posters for Programs
+assets += [
+    ProgramAsset(
+        program_id=program_python.id,
+        language="en",
+        variant=AssetVariantEnum.portrait,
+        asset_type=AssetTypeEnum.poster,
+        url="https://cdn.demo/assets/python_poster_portrait_en.jpg",
+    ),
+    ProgramAsset(
+        program_id=program_python.id,
+        language="en",
+        variant=AssetVariantEnum.landscape,
+        asset_type=AssetTypeEnum.poster,
+        url="https://cdn.demo/assets/python_poster_landscape_en.jpg",
+    ),
+    ProgramAsset(
+        program_id=program_react.id,
+        language="en",
+        variant=AssetVariantEnum.portrait,
+        asset_type=AssetTypeEnum.poster,
+        url="https://cdn.demo/assets/react_poster_portrait_en.jpg",
+    ),
+    ProgramAsset(
+        program_id=program_react.id,
+        language="en",
+        variant=AssetVariantEnum.landscape,
+        asset_type=AssetTypeEnum.poster,
+        url="https://cdn.demo/assets/react_poster_landscape_en.jpg",
+    ),
+]
+
+# Thumbnails for Lessons
+for lesson in lessons:
+    assets.append(
+        LessonAsset(
+            lesson_id=lesson.id,
+            language=lesson.content_language_primary,
+            variant=AssetVariantEnum.portrait,
+            asset_type=AssetTypeEnum.thumbnail,
+            url=f"https://cdn.demo/thumbnails/{lesson.title.replace(' ', '_')}_portrait.jpg",
+        )
+    )
+    assets.append(
+        LessonAsset(
+            lesson_id=lesson.id,
+            language=lesson.content_language_primary,
+            variant=AssetVariantEnum.landscape,
+            asset_type=AssetTypeEnum.thumbnail,
+            url=f"https://cdn.demo/thumbnails/{lesson.title.replace(' ', '_')}_landscape.jpg",
+        )
+    )
+
+db.add_all(assets)
+db.commit()
+
+print("Seed data created successfully!")
 print(f"Programs: {[p.title for p in db.query(Program).all()]}")
-print(f"Lessons in Python Basics: {[l.title for l in db.query(Lesson).filter_by(program_id=program_python.id).all()]}")
-print(" One scheduled lesson will auto-publish in 2 minutes.")
+print("Lessons added and published successfully!")
 
 db.close()

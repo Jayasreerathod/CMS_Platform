@@ -138,29 +138,36 @@ def schedule_lesson_publish(lesson_id: str, data: dict, background_tasks: Backgr
 
 
 @router.post("/lessons/{lesson_id}/publish")
-def publish_lesson(lesson_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
+def publish_lesson(lesson_id: str, db: Session = Depends(get_db)):
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        return {"error": "Lesson not found"}, 404
 
-    #  Validate media requirements
-    validate_lesson_assets(lesson)
+    # ✅ Validate that required fields exist before publishing
+    errors = []
 
+    # Content URLs validation
+    if not lesson.content_urls_by_language or not lesson.content_urls_by_language.get(lesson.content_language_primary):
+        errors.append("Missing content URL for primary language.")
+
+    # Thumbnail validation
+    if not lesson.thumbnail_assets_by_language:
+        errors.append("Missing thumbnails.")
+    else:
+        lang_assets = lesson.thumbnail_assets_by_language.get(lesson.content_language_primary, {})
+        if not lang_assets.get("portrait") or not lang_assets.get("landscape"):
+            errors.append("Portrait or landscape thumbnail missing for primary language.")
+
+    # If errors exist, block publish
+    if errors:
+        return {"status": "error", "message": "Cannot publish", "details": errors}, 400
+
+    # ✅ Update status and publish time
     lesson.status = StatusEnum.published
     lesson.published_at = datetime.utcnow()
     db.commit()
-    db.refresh(lesson)
 
-    # also publish parent program
-    term = db.query(Term).filter(Term.id == lesson.term_id).first()
-    if term:
-        program = db.query(Program).filter(Program.id == term.program_id).first()
-        if program and program.status != StatusEnum.published:
-            program.status = StatusEnum.published
-            program.published_at = datetime.utcnow()
-            db.commit()
-
-    return {"message": "Lesson published", "lesson": lesson}
+    return {"status": "success", "message": f"Lesson '{lesson.title}' published successfully."}
 
 @router.post("/lessons/{lesson_id}/archive")
 def archive_lesson(lesson_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
