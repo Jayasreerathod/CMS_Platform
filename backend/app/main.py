@@ -1,41 +1,61 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from app.database import engine, Base
 from app.api import auth, cms, catalog
-from app.database import Base, engine
-from app.models_program import *
 import threading
-from app.worker import start_worker
+from app.worker import start_worker  # background publisher
 
+# ---------------------------------------------------------
+# Initialize FastAPI app
+# ---------------------------------------------------------
 app = FastAPI(title="LessonCMS Backend")
 
-#  Auto-create tables (helps on first deploy)
-Base.metadata.create_all(bind=engine)
+# ---------------------------------------------------------
+# Temporary DB Reset (runs once when deployed)
+# ---------------------------------------------------------
+@app.on_event("startup")
+def reset_and_start():
+    with engine.begin() as conn:
+        # ⚠️ WARNING: This will drop old tables on every deploy
+        conn.execute(text("""
+            DROP TABLE IF EXISTS programs CASCADE;
+            DROP TABLE IF EXISTS lessons CASCADE;
+            DROP TABLE IF EXISTS terms CASCADE;
+            DROP TABLE IF EXISTS program_assets CASCADE;
+            DROP TABLE IF EXISTS lesson_assets CASCADE;
+        """))
+        print("✅ Dropped old tables successfully!")
 
-# Allow both Vercel + localhost
-origins = [
-    "https://cms-platform-phi.vercel.app",
-    "http://localhost:4173",
-]
+    # Recreate tables
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database schema recreated successfully!")
 
+    # Start background worker thread
+    thread = threading.Thread(target=start_worker, daemon=True)
+    thread.start()
+    print("✅ Background worker started successfully!")
+
+# ---------------------------------------------------------
+# CORS (important for frontend on Vercel)
+# ---------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "https://cms-platform-phi.vercel.app",  # your Vercel frontend
+        "http://localhost:4173",                # for local testing
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Routers ---
+# ---------------------------------------------------------
+# Routers
+# ---------------------------------------------------------
 app.include_router(auth.router, prefix="/auth")
 app.include_router(cms.router, prefix="/cms")
 app.include_router(catalog.router, prefix="/catalog")
-
-# --- Background Worker ---
-@app.on_event("startup")
-def start_background_worker():
-    thread = threading.Thread(target=start_worker, daemon=True)
-    thread.start()
-    print(" Background worker started successfully!")
 
 @app.get("/")
 def home():
