@@ -12,38 +12,14 @@ from app.worker import start_worker  # background publisher
 app = FastAPI(title="LessonCMS Backend")
 
 # ---------------------------------------------------------
-# Temporary DB Reset (runs once when deployed)
-# ---------------------------------------------------------
-@app.on_event("startup")
-def reset_and_start():
-    with engine.begin() as conn:
-        # ⚠️ WARNING: This will drop old tables on every deploy
-        conn.execute(text("""
-            DROP TABLE IF EXISTS programs CASCADE;
-            DROP TABLE IF EXISTS lessons CASCADE;
-            DROP TABLE IF EXISTS terms CASCADE;
-            DROP TABLE IF EXISTS program_assets CASCADE;
-            DROP TABLE IF EXISTS lesson_assets CASCADE;
-        """))
-        print("✅ Dropped old tables successfully!")
-
-    # Recreate tables
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database schema recreated successfully!")
-
-    # Start background worker thread
-    thread = threading.Thread(target=start_worker, daemon=True)
-    thread.start()
-    print("✅ Background worker started successfully!")
-
-# ---------------------------------------------------------
-# CORS (important for frontend on Vercel)
+# CORS (frontend access)
 # ---------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://cms-platform-phi.vercel.app",  # your Vercel frontend
-        "http://localhost:4173",                # for local testing
+        "https://cms-platform-phi.vercel.app",  # your deployed frontend
+        "http://localhost:4173",                # local dev preview
+        "http://localhost:5173",                # vite dev
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -56,6 +32,21 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth")
 app.include_router(cms.router, prefix="/cms")
 app.include_router(catalog.router, prefix="/catalog")
+
+# ---------------------------------------------------------
+# Startup events
+# ---------------------------------------------------------
+@app.on_event("startup")
+def start_background_worker():
+    # Ensure tables exist (but don't drop them anymore!)
+    Base.metadata.create_all(bind=engine)
+    print(" Database schema ensured.")
+
+    # Start the background worker safely
+    thread = threading.Thread(target=start_worker, daemon=True)
+    thread.start()
+    print(" Background worker started successfully!")
+
 
 @app.get("/")
 def home():
