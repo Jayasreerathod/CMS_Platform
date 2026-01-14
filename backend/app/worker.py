@@ -6,14 +6,14 @@ from app.models_program import Program, Lesson, StatusEnum
 
 
 def run_worker_once():
-    """Runs a single background publishing cycle (idempotent)."""
+    """Run one background publishing cycle."""
     db = SessionLocal()
-    now = datetime.now(timezone.utc)  # timezone-aware UTC
+    now = datetime.now(timezone.utc)
 
     try:
         print(f"[Worker] Running at {now.isoformat()}...")
 
-        # Step 1: Find lessons that are scheduled and ready to publish
+        # Step 1: Find lessons scheduled for publishing
         scheduled_lessons = (
             db.query(Lesson)
             .filter(
@@ -34,15 +34,9 @@ def run_worker_once():
                 lesson.published_at = now
                 db.add(lesson)
 
-                # Step 2: Check if parent program should become published
-                program = (
-                    db.query(Program)
-                    .filter(Program.id == lesson.program_id)
-                    .first()
-                )
-
+                # Step 2: Auto-publish parent program if needed
+                program = db.query(Program).filter(Program.id == lesson.program_id).first()
                 if program and program.status != StatusEnum.published:
-                    # Only publish if there is at least one published lesson
                     published_count = (
                         db.query(Lesson)
                         .filter(
@@ -58,29 +52,24 @@ def run_worker_once():
                         db.add(program)
 
             db.commit()
-            print("[Worker] - Publishing cycle complete.")
+            print("[Worker]  Publishing cycle complete.")
 
     except Exception as e:
         db.rollback()
-        print(f"[Worker] ❌ Error: {e}")
+        print(f"[Worker]- Error: {e}")
 
     finally:
         db.close()
 
 
-# --- Background loop for manual or deployment run ---
 def start_worker():
-    """Starts an infinite background loop to run every 60 seconds."""
-    print(" Starting background worker... (Press Ctrl+C to stop)")
+    """Start infinite background worker loop."""
+    print("Starting background worker... (Press Ctrl+C to stop)")
     while True:
         run_worker_once()
-        time.sleep(60)  # run every minute
+        time.sleep(60)  # check every 60 seconds
 
 
-# --- Alias for backward compatibility ---
-run_scheduled_publisher = run_worker_once
-
-
-# --- Run manually if executed directly ---
+# --- Prevent auto-run when imported by FastAPI ---
 if __name__ == "__main__":
     start_worker()

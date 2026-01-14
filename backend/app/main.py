@@ -1,62 +1,62 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-from app.database import engine, Base, SessionLocal
-from app.models_program import Program
 from app.api import auth, cms, catalog
+from app.worker import start_worker
+from app.database import SessionLocal, Base, engine
+from app.models_program import Program
 import threading
-from app.worker import start_worker  # background publisher
-from seed_data import main as run_seed
+import traceback
 
-# ---------------------------------------------------------
-# Initialize FastAPI app
-# ---------------------------------------------------------
 app = FastAPI(title="LessonCMS Backend")
 
-# ---------------------------------------------------------
-# CORS (frontend access)
-# ---------------------------------------------------------
+# --- CORS Setup ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cms-platform-phi.vercel.app",  # your deployed frontend
-        "http://localhost:4173",                # local dev preview
-        "http://localhost:5173",                # vite dev
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------
-# Routers
-# ---------------------------------------------------------
+# --- Include Routers ---
 app.include_router(auth.router, prefix="/auth")
 app.include_router(cms.router, prefix="/cms")
 app.include_router(catalog.router, prefix="/catalog")
 
-# ---------------------------------------------------------
-# Startup events
-# ---------------------------------------------------------
-@app.on_event("startup")
-def start_background_worker():
-    # --- Auto-run seeding logic ---
-    try:
-        db = SessionLocal()
-        if not db.query(Program).first():
-            print(" programs found — running auto-seed...")
-            run_seed()
-            print("Auto-seed complete.")
-        else:
-            print("rograms already exist — skipping auto-seed.")
-        db.close()
-    except Exception as e:
-        print(f"Auto-seed failed: {e}")
+# --- Import seeding script ---
+from seed_data import db, Program  # reuses your logic safely
 
-    # --- Start background publishing worker ---
+def auto_seed():
+    """Automatically seed database if it's empty (Render safe)."""
+    try:
+        session = SessionLocal()
+        if session.query(Program).first():
+            print("Dtabase already has programs — skipping auto-seed.")
+            session.close()
+            return
+        print(" Auto-seeding database...")
+        import seed_data  # runs the seeding logic
+        print(" Auto-seed completed successfully.")
+        session.close()
+    except Exception as e:
+        print(" Auto-seed failed:", str(e))
+        traceback.print_exc()
+
+
+# --- Run background worker and auto-seed ---
+@app.on_event("startup")
+def startup_event():
+    # Create tables if not exist
+    Base.metadata.create_all(bind=engine)
+
+    # Start background publishing worker
     thread = threading.Thread(target=start_worker, daemon=True)
     thread.start()
-    print("Background worker thread started successfully!")
+    print(" Background worker thread started successfully!")
+
+    # Run seed automatically
+    auto_seed()
+
 
 @app.get("/")
 def home():
