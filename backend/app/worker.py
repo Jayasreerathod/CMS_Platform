@@ -73,3 +73,4 @@ def start_worker():
 # --- Prevent auto-run when imported by FastAPI ---
 if __name__ == "__main__":
     start_worker()
+run_scheduled_publisher = run_worker_once

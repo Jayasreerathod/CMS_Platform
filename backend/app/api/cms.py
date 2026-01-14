@@ -143,7 +143,7 @@ def publish_lesson(lesson_id: str, db: Session = Depends(get_db)):
     if not lesson:
         return {"error": "Lesson not found"}, 404
 
-    # ✅ Validate that required fields exist before publishing
+    #  Validate that required fields exist before publishing
     errors = []
 
     # Content URLs validation
@@ -162,7 +162,7 @@ def publish_lesson(lesson_id: str, db: Session = Depends(get_db)):
     if errors:
         return {"status": "error", "message": "Cannot publish", "details": errors}, 400
 
-    # ✅ Update status and publish time
+    #  Update status and publish time
     lesson.status = StatusEnum.published
     lesson.published_at = datetime.utcnow()
     db.commit()
