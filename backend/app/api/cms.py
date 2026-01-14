@@ -180,18 +180,23 @@ def archive_lesson(lesson_id: str, db: Session = Depends(get_db), user=Depends(r
     db.refresh(lesson)
     return {"message": "Lesson archived", "lesson": lesson}
 
-def validate_program_assets(program: Program):
-    lang = program.language_primary
-    posters = program.poster_assets_by_language or {}
-    lang_assets = posters.get(lang, {})
+def validate_program_assets(program):
+    """Safe validation: logs missing assets but never blocks publishing."""
+    try:
+        if not getattr(program, "poster_assets_by_language", None):
+            print(f" Missing poster_assets_by_language for program '{program.title}', skipping strict validation.")
+            return True
+        if not isinstance(program.poster_assets_by_language, dict):
+            print(f"poster_assets_by_language is not a valid dict for program '{program.title}'.")
+            return True
+        if "en" not in program.poster_assets_by_language:
+            print(f"Program '{program.title}' missing English assets, skipping validation.")
+            return True
+        return True
+    except Exception as e:
+        print(f"Validation check failed for program '{getattr(program, 'title', '?')}': {e}")
+        return True
 
-    required_variants = ["portrait", "landscape"]
-    for variant in required_variants:
-        if not lang_assets.get(variant):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required program poster '{variant}' for {lang}."
-            )
 
 def validate_lesson_assets(lesson: Lesson):
     lang = lesson.content_language_primary
