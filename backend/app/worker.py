@@ -58,7 +58,7 @@ def run_worker_once():
                         db.add(program)
 
             db.commit()
-            print("[Worker] ✅ Publishing cycle complete.")
+            print("[Worker] - Publishing cycle complete.")
 
     except Exception as e:
         db.rollback()
@@ -71,7 +71,7 @@ def run_worker_once():
 # --- Background loop for manual or deployment run ---
 def start_worker():
     """Starts an infinite background loop to run every 60 seconds."""
-    print("🚀 Starting background worker... (Press Ctrl+C to stop)")
+    print(" Starting background worker... (Press Ctrl+C to stop)")
     while True:
         run_worker_once()
         time.sleep(60)  # run every minute
