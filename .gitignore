@@ -10,7 +10,6 @@ __pycache__/
 Thumbs.db
 
 # Python / FastAPI Backend
-
 backend/venv/
 backend/.venv/
 backend/__pycache__/

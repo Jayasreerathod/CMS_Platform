@@ -7,4 +7,5 @@ def require_role(required: list):
         if role not in required:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
         return user
+
     return wrapper

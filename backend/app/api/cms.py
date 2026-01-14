@@ -1,40 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import and_
 from app.database import get_db
-from app.models_program import Program, Lesson, StatusEnum
+from app.models_program import Program, Lesson, StatusEnum, Term
+from app.worker import run_scheduled_publisher
 
 router = APIRouter(tags=["CMS"])
 
-# -------------------------------
-# ROLE-BASED ACCESS CONTROL (RBAC)
-# -------------------------------
+# --- Dummy auth for now (replaceable with JWT later) ---
 def get_current_user():
-    """
-    Temporary role simulation.
-    You can later connect this to real JWT auth (admin@cms.com / editor@cms.com).
-    """
-    return {"email": "editor@cms.com", "role": "editor"}  # or admin
-
-def require_role(required_role: str):
-    def checker(user=Depends(get_current_user)):
-        if user["role"] != required_role:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"{required_role.capitalize()} role required.",
-            )
-        return user
-    return checker
+    # default to admin for local testing
+    return {"role": "admin"}
 
 def require_admin_or_editor(user=Depends(get_current_user)):
     if user["role"] not in ["admin", "editor"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     return user
 
-# -------------------------------
-# PROGRAM ENDPOINTS
-# -------------------------------
 
+# ================= PROGRAMS =================
 @router.get("/programs")
 def list_programs(db: Session = Depends(get_db)):
     programs = db.query(Program).all()
@@ -42,15 +27,16 @@ def list_programs(db: Session = Depends(get_db)):
 
 
 @router.post("/programs")
-def create_program(
-    data: dict,
-    db: Session = Depends(get_db),
-    user=Depends(require_admin_or_editor),
-):
+def create_program(data: dict, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
+    if not data.get("title"):
+        raise HTTPException(status_code=400, detail="Program title required")
+
     new_program = Program(
-        title=data.get("title"),
+        title=data["title"],
         description=data.get("description", ""),
         status=StatusEnum.draft,
+        language_primary=data.get("language_primary", "en"),
+        languages_available=data.get("languages_available", ["en"]),
     )
     db.add(new_program)
     db.commit()
@@ -59,55 +45,25 @@ def create_program(
 
 
 @router.post("/programs/{program_id}/publish")
-def publish_program(
-    program_id: str,
-    db: Session = Depends(get_db),
-    user=Depends(require_role("admin")),  #  only admin can publish
-):
+def publish_program(program_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
     program = db.query(Program).filter(Program.id == program_id).first()
     if not program:
         raise HTTPException(status_code=404, detail="Program not found")
+
+    # Validate media requirements
+    validate_program_assets(program)
+
     program.status = StatusEnum.published
     program.published_at = datetime.utcnow()
     db.commit()
     db.refresh(program)
+    ...
+
     return {"message": "Program published", "program": program}
 
 
-@router.post("/programs/{program_id}/schedule")
-def schedule_program_publish(
-    program_id: str,
-    data: dict,
-    db: Session = Depends(get_db),
-    user=Depends(require_role("editor")),  #  only editors schedule
-):
-    """Schedule a program to be auto-published later."""
-    publish_at_str = data.get("publish_at")
-    if not publish_at_str:
-        raise HTTPException(status_code=400, detail="publish_at is required")
-
-    try:
-        publish_at = datetime.fromisoformat(publish_at_str)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid datetime format")
-
-    program = db.query(Program).filter(Program.id == program_id).first()
-    if not program:
-        raise HTTPException(status_code=404, detail="Program not found")
-
-    program.status = StatusEnum.scheduled
-    program.published_at = publish_at
-    db.commit()
-    db.refresh(program)
-    return {"message": f"Program scheduled for {publish_at}", "program": program}
-
-
 @router.delete("/programs/{program_id}")
-def delete_program(
-    program_id: str,
-    db: Session = Depends(get_db),
-    user=Depends(require_admin_or_editor),
-):
+def delete_program(program_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
     program = db.query(Program).filter(Program.id == program_id).first()
     if not program:
         raise HTTPException(status_code=404, detail="Program not found")
@@ -121,45 +77,124 @@ def get_program_details(program_id: str, db: Session = Depends(get_db)):
     program = db.query(Program).filter(Program.id == program_id).first()
     if not program:
         raise HTTPException(status_code=404, detail="Program not found")
-    lessons = db.query(Lesson).filter(Lesson.program_id == program_id).all()
-    return {"program": program, "lessons": lessons or []}
 
-# -------------------------------
-# LESSON ENDPOINTS
-# -------------------------------
+    terms = db.query(Term).filter(Term.program_id == program.id).all()
+    lessons = db.query(Lesson).join(Term).filter(Term.program_id == program.id).all()
+    return {"program": program, "terms": terms, "lessons": lessons}
 
+
+# ================= LESSONS =================
 @router.post("/programs/{program_id}/lessons")
-def add_lesson(
-    program_id: str,
-    data: dict,
-    db: Session = Depends(get_db),
-    user=Depends(require_admin_or_editor),
-):
+def add_lesson(program_id: str, data: dict, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
     program = db.query(Program).filter(Program.id == program_id).first()
     if not program:
         raise HTTPException(status_code=404, detail="Program not found")
 
-    lesson = Lesson(
-        title=data.get("title"),
-        program_id=program_id,
-        lesson_number=len(program.lessons) + 1,
+    term = db.query(Term).filter(Term.program_id == program_id).first()
+    if not term:
+        # auto-create term 1 if missing
+        term = Term(program_id=program_id, term_number=1, title="Default Term")
+        db.add(term)
+        db.commit()
+        db.refresh(term)
+
+    next_lesson_num = (db.query(Lesson).filter(Lesson.term_id == term.id).count() or 0) + 1
+
+    new_lesson = Lesson(
+        program_id=program_id,  # THIS FIXES THE ERROR
+        title=data.get("title", f"Lesson {next_lesson_num}"),
+        term_id=term.id,
+        lesson_number=next_lesson_num,
+        content_type=data.get("content_type", "video"),
+        content_language_primary=data.get("content_language_primary", "en"),
+        content_languages_available=data.get("content_languages_available", ["en"]),
+        content_urls_by_language=data.get("content_urls_by_language", {"en": data.get("content_url", "")}),
         status=StatusEnum.draft,
     )
-    db.add(lesson)
+
+    db.add(new_lesson)
     db.commit()
-    db.refresh(lesson)
-    return lesson
+    db.refresh(new_lesson)
+    return new_lesson
 
-
-@router.delete("/lessons/{lesson_id}")
-def delete_lesson(
-    lesson_id: str,
-    db: Session = Depends(get_db),
-    user=Depends(require_admin_or_editor),
-):
+@router.post("/lessons/{lesson_id}/schedule")
+def schedule_lesson_publish(lesson_id: str, data: dict, background_tasks: BackgroundTasks,
+                            db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
+    """
+    Schedule a lesson for publishing in the future.
+    Payload example: { "publish_in_minutes": 2 }
+    """
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    db.delete(lesson)
+
+    publish_delay = data.get("publish_in_minutes", 1)
+    lesson.status = StatusEnum.scheduled
+    lesson.publish_at = datetime.utcnow() + timedelta(minutes=publish_delay)
     db.commit()
-    return {"message": "Lesson deleted"}
+
+    background_tasks.add_task(run_scheduled_publisher)
+    return {"message": f"Lesson scheduled to publish in {publish_delay} minutes."}
+
+
+@router.post("/lessons/{lesson_id}/publish")
+def publish_lesson(lesson_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    #  Validate media requirements
+    validate_lesson_assets(lesson)
+
+    lesson.status = StatusEnum.published
+    lesson.published_at = datetime.utcnow()
+    db.commit()
+    db.refresh(lesson)
+
+    # also publish parent program
+    term = db.query(Term).filter(Term.id == lesson.term_id).first()
+    if term:
+        program = db.query(Program).filter(Program.id == term.program_id).first()
+        if program and program.status != StatusEnum.published:
+            program.status = StatusEnum.published
+            program.published_at = datetime.utcnow()
+            db.commit()
+
+    return {"message": "Lesson published", "lesson": lesson}
+
+@router.post("/lessons/{lesson_id}/archive")
+def archive_lesson(lesson_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    lesson.status = StatusEnum.archived
+    db.commit()
+    db.refresh(lesson)
+    return {"message": "Lesson archived", "lesson": lesson}
+
+def validate_program_assets(program: Program):
+    lang = program.language_primary
+    posters = program.poster_assets_by_language or {}
+    lang_assets = posters.get(lang, {})
+
+    required_variants = ["portrait", "landscape"]
+    for variant in required_variants:
+        if not lang_assets.get(variant):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required program poster '{variant}' for {lang}."
+            )
+
+def validate_lesson_assets(lesson: Lesson):
+    lang = lesson.content_language_primary
+    thumbs = lesson.thumbnail_assets_by_language or {}
+    lang_assets = thumbs.get(lang, {})
+
+    required_variants = ["portrait", "landscape"]
+    for variant in required_variants:
+        if not lang_assets.get(variant):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required lesson thumbnail '{variant}' for {lang}."
+            )

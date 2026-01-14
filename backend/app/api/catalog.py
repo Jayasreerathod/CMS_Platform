@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models_program import Program, Lesson, StatusEnum
-
+from app.api.cms import require_admin_or_editor
 router = APIRouter(tags=["Catalog"])
 
 @router.get("/programs")
@@ -31,3 +31,13 @@ def get_program_lessons(program_id: str, db: Session = Depends(get_db)):
         .all()
     )
     return {"program": program, "lessons": lessons or []}
+
+
+@router.post("/lessons/{lesson_id}/archive")
+def archive_lesson(lesson_id: str, db: Session = Depends(get_db), user=Depends(require_admin_or_editor)):
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    lesson.status = StatusEnum.archived
+    db.commit()
+    return {"message": "Lesson archived", "lesson": lesson}

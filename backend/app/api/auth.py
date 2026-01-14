@@ -13,7 +13,7 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-@router.post("/auth/login")
+@router.post("/login")
 def login(data: LoginRequest):
     user = USERS.get(data.email)
     if not user or user["password"] != data.password:

@@ -6,197 +6,129 @@ export default function Programs() {
   const [programs, setPrograms] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [scheduleTime, setScheduleTime] = useState(""); 
   const role = localStorage.getItem("role");
   const token = localStorage.getItem("token");
 
   useEffect(() => {
     async function fetchPrograms() {
       try {
-        const res = await api.get("/cms/programs", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await api.get("/cms/programs");
         setPrograms(res.data);
       } catch (err) {
-        console.error("Error fetching programs:", err);
+        console.error(err);
       }
     }
     fetchPrograms();
-  }, [token]);
+  }, []);
 
-  // Add new program (admin/editor only)
-  async function handleAddProgram() {
-    if (!title.trim()) return alert("Please enter a program title");
-    try {
-      await api.post(
-        "/cms/programs",
-        { title, description },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert("Program created!");
-      window.location.reload();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create program");
-    }
+  async function handleAdd() {
+    if (!title) return alert("Please enter a title");
+    await api.post(
+      "/cms/programs",
+      { title, description },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert("Program added!");
+    window.location.reload();
   }
 
-  // Publish immediately (admin only)
   async function handlePublish(id) {
-    try {
-      await api.post(
-        `/cms/programs/${id}/publish`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert("Program published!");
-      window.location.reload();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to publish program");
-    }
+    await api.post(
+      `/cms/programs/${id}/publish`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert("Published!");
+    window.location.reload();
   }
 
-  //  Schedule publish (editor only)
-  async function handleSchedule(id) {
-    if (!scheduleTime) return alert("Please select a date & time first.");
-    try {
-      await api.post(
-        `/cms/programs/${id}/schedule`,
-        { publish_at: scheduleTime },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert(`Program scheduled for ${scheduleTime}`);
-      window.location.reload();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to schedule program");
-    }
-  }
-
-  // Delete program
   async function handleDelete(id) {
-    if (!window.confirm("Are you sure you want to delete this program?")) return;
-    try {
-      await api.delete(`/cms/programs/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      alert("Program deleted.");
-      setPrograms((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete program");
-    }
+    if (!window.confirm("Delete program?")) return;
+    await api.delete(`/cms/programs/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    window.location.reload();
   }
 
   return (
-    <div className="p-8 text-white">
-      <h1 className="text-3xl font-bold text-indigo-400 mb-6">Programs</h1>
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 text-white p-8">
+      <h1 className="text-4xl font-extrabold text-indigo-400 mb-6">
+        🎓 LessonCMS Dashboard
+      </h1>
 
-      {/* Add Form for Admin/Editor */}
       {(role === "admin" || role === "editor") && (
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="bg-gray-800 p-4 rounded-xl mb-8 shadow-lg border border-gray-700 flex gap-4 flex-wrap">
           <input
-            type="text"
-            placeholder="Program title"
+            placeholder="Program Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="p-2 bg-gray-700 rounded border border-gray-600"
+            className="p-2 rounded bg-gray-900 border border-gray-700"
           />
           <input
-            type="text"
             placeholder="Description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="p-2 bg-gray-700 rounded border border-gray-600"
+            className="p-2 rounded bg-gray-900 border border-gray-700 flex-1"
           />
           <button
-            onClick={handleAddProgram}
-            className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 rounded"
+            onClick={handleAdd}
+            className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-white"
           >
-            + New Program
+            ➕ Add Program
           </button>
         </div>
       )}
 
-      {programs.length === 0 ? (
-        <p className="text-gray-400">No programs found.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {programs.map((p) => (
-            <div
-              key={p.id}
-              className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-indigo-400 transition"
-            >
-              <h2 className="text-xl font-semibold text-indigo-400">
-                {p.title}
-              </h2>
-              <p className="text-gray-400 text-sm mb-3">{p.description}</p>
+      <div className="grid md:grid-cols-3 sm:grid-cols-2 gap-6">
+        {programs.map((p) => (
+          <div
+            key={p.id}
+            className="bg-gray-900 p-5 rounded-xl shadow-lg hover:border-indigo-500 border border-gray-700 transition"
+          >
+            <h2 className="text-xl font-semibold text-indigo-400 mb-2">{p.title}</h2>
+            <p className="text-gray-400 mb-4 text-sm">{p.description}</p>
 
-              <p className="text-sm mb-3">
-                <span
-                  className={`px-2 py-1 rounded ${
-                    p.status === "published"
-                      ? "bg-green-600"
-                      : p.status === "scheduled"
-                      ? "bg-yellow-500 text-black"
-                      : "bg-gray-500"
-                  }`}
-                >
-                  {p.status}
-                </span>
-              </p>
-
+            <div className="flex justify-between items-center mb-3">
+              <span
+                className={`px-2 py-1 rounded text-xs font-semibold ${
+                  p.status === "published"
+                    ? "bg-green-600"
+                    : p.status === "scheduled"
+                    ? "bg-yellow-500 text-black"
+                    : "bg-gray-500"
+                }`}
+              >
+                {p.status.toUpperCase()}
+              </span>
               <Link
                 to={`/programs/${p.id}`}
-                className="inline-block bg-indigo-500 hover:bg-indigo-600 px-3 py-1 rounded text-sm mr-2"
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold"
               >
-                Manage Lessons
+                View Lessons →
               </Link>
-
-              {(role === "admin" || role === "editor") && (
-                <div className="mt-3 flex flex-col gap-2">
-                  {/* Admin - Publish */}
-                  {role === "admin" && p.status !== "published" && (
-                    <button
-                      onClick={() => handlePublish(p.id)}
-                      className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
-                    >
-                      Publish Now
-                    </button>
-                  )}
-
-                  {/* Editor - Schedule */}
-                  {role === "editor" && (
-                    <div>
-                      <input
-                        type="datetime-local"
-                        value={scheduleTime}
-                        onChange={(e) => setScheduleTime(e.target.value)}
-                        className="p-1 bg-gray-700 text-sm rounded border border-gray-600 mb-1"
-                      />
-                      <button
-                        onClick={() => handleSchedule(p.id)}
-                        className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded text-sm"
-                      >
-                        Schedule Publish
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Delete */}
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
             </div>
-          ))}
-        </div>
-      )}
+
+            {(role === "admin" || role === "editor") && (
+              <div className="flex gap-2">
+                {p.status !== "published" && (
+                  <button
+                    onClick={() => handlePublish(p.id)}
+                    className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
+                  >
+                    Publish
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

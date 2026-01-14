@@ -8,3 +8,6 @@ pydantic
 gunicorn
 uvicorn[standard]
 psycopg2-binary
+python-multipart
+jinja2
+watchfiles

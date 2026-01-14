@@ -1,35 +1,33 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, cms, catalog
-from app.worker import start_worker 
+import threading
+from app.worker import start_worker  # background publisher
 
-app = FastAPI(title="LessonCMS")
+app = FastAPI(title="LessonCMS Backend")
 
-@app.get("/")
-def root():
-    return {"message": "Welcome to LessonCMS API"}
-
-origins = [
-    "https://cms-platform-phi.vercel.app",
-    "https://cms-platform-*.vercel.app",
-    "https://cms-platform-byufhuv0k-jayasree-rathods-projects.vercel.app"
-    "*",
-]
-
+# --- CORS (for frontend to access API) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://lessoncms.vercel.app","*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-#  start worker on app launch
-@app.on_event("startup")
-def startup_event():
-    start_worker()
-
-#  include existing routers
-app.include_router(auth.router)
+# --- Include routers ---
+app.include_router(auth.router, prefix="/auth")
 app.include_router(cms.router, prefix="/cms")
 app.include_router(catalog.router, prefix="/catalog")
+
+# --- Run background worker in a thread ---
+@app.on_event("startup")
+def start_background_worker():
+    thread = threading.Thread(target=start_worker, daemon=True)
+    thread.start()
+    print("Background worker thread started successfully!")
+
+
+@app.get("/")
+def home():
+    return {"message": "LessonCMS backend running successfully 🚀"}

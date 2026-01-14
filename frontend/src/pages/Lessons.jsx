@@ -47,19 +47,45 @@ export default function Lessons() {
   }
 
   async function updateStatus(id, newStatus) {
-    try {
-      const data =
-        newStatus === "scheduled"
-          ? { status: newStatus, publish_at: publishAt }
-          : { status: newStatus };
-      await api.put(`/cms/lessons/${id}/status`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      fetchLessons();
-    } catch (err) {
-      alert("Failed to update lesson status");
+  try {
+    if (newStatus === "published") {
+      // immediate publish
+      await api.post(
+        `/cms/lessons/${id}/publish`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Lesson published!");
+    } else if (newStatus === "scheduled") {
+      // schedule publishing
+      const minutes = prompt("Publish after how many minutes?", "2");
+      if (!minutes) return;
+
+      const publishAt = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+
+      await api.post(
+        `/cms/lessons/${id}/publish`,
+        { publish_at: publishAt },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(`Lesson scheduled to publish at ${publishAt}`);
+    } else if (newStatus === "archived") {
+      // archive lesson
+      await api.post(
+        `/cms/lessons/${id}/archive`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Lesson archived!");
     }
+
+    fetchLessons();
+  } catch (err) {
+    console.error(err);
+    alert(`Failed to ${newStatus} lesson.`);
   }
+}
+
 
   return (
     <div className="p-8 text-white">

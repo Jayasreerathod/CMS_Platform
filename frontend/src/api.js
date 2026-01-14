@@ -1,13 +1,11 @@
 import axios from "axios";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.trim() ||
-  "https://cms-platform-backend.onrender.com"; // fallback for production
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"; // fallback for production
 
-console.log("Using API base URL:", API_BASE);
+console.log("Using API base URL:", API_BASE_URL);
 
-export const api = axios.create({
-  baseURL: API_BASE,
+const api = axios.create({
+  baseURL: API_BASE_URL,
 });
 
 export async function getPrograms() {

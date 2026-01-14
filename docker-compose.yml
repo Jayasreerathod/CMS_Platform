@@ -1,40 +1,19 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: lesson_cms
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  api:
+  backend:
     build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      - "8000:10000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/lesson_cms
-      JWT_SECRET: supersecret
-    depends_on:
-      - db
+      - DATABASE_URL=sqlite:///app.db
+    restart: always
 
-  worker:
-    build: ./backend
-    command: python -m app.worker.publisher
-    depends_on:
-      - db
-
-  web:
+  frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "4173:4173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
     depends_on:
-      - api
-
-volumes:
-  pgdata:
+      - backend

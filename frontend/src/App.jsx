@@ -34,7 +34,7 @@ export default function App() {
           }
         />
         <Route
-          path="/programs/:id"
+          path="/programs/:programId"
           element={
             <PrivateRoute>
               <ProgramDetail />
@@ -50,7 +50,7 @@ export default function App() {
           }
         />
         <Route path="/catalog" element={<Catalog />} />
-        <Route path="/programs/:programId" element={<Lessons />} />
+        <Route path="/programs/:programId" element={<ProgramDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
