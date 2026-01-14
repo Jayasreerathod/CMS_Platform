@@ -1,15 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, cms, catalog
-from app.worker import start_worker
-from app.database import SessionLocal, Base, engine
-from app.models_program import Program
 import threading
-import traceback
+from app.worker import start_worker
+from app.database import SessionLocal, engine, Base
+from app.models_program import Program
+from seed_data import main as run_seed  # assuming your seeding script is named seed_data.py
 
 app = FastAPI(title="LessonCMS Backend")
 
-# --- CORS Setup ---
+# --- CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,39 +23,25 @@ app.include_router(auth.router, prefix="/auth")
 app.include_router(cms.router, prefix="/cms")
 app.include_router(catalog.router, prefix="/catalog")
 
-# --- Import seeding script ---
-from seed_data import db, Program  # reuses your logic safely
 
-def auto_seed():
-    """Automatically seed database if it's empty (Render safe)."""
-    try:
-        session = SessionLocal()
-        if session.query(Program).first():
-            print("Dtabase already has programs — skipping auto-seed.")
-            session.close()
-            return
-        print(" Auto-seeding database...")
-        import seed_data  # runs the seeding logic
-        print(" Auto-seed completed successfully.")
-        session.close()
-    except Exception as e:
-        print(" Auto-seed failed:", str(e))
-        traceback.print_exc()
-
-
-# --- Run background worker and auto-seed ---
 @app.on_event("startup")
-def startup_event():
-    # Create tables if not exist
-    Base.metadata.create_all(bind=engine)
+def on_startup():
+    """Ensure DB seeded and background worker starts without blocking Render."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        db = SessionLocal()
+        if not db.query(Program).first():
+            print("Seeding database (Render startup)...")
+            run_seed()
+        else:
+            print(" Database already has data — skipping seed.")
+        db.close()
+    except Exception as e:
+        print(f" Seeding skipped: {e}")
 
-    # Start background publishing worker
-    thread = threading.Thread(target=start_worker, daemon=True)
-    thread.start()
+    # Start worker safely
+    threading.Thread(target=start_worker, daemon=True).start()
     print(" Background worker thread started successfully!")
-
-    # Run seed automatically
-    auto_seed()
 
 
 @app.get("/")
