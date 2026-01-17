@@ -11,10 +11,10 @@ It allows admins to manage educational programs, terms, and lessons — with aut
             │ • React + Vite + Tailwind CSS                                │
             │ • Axios calls backend REST APIs                              │
             │ • Displays Programs, Lessons & Publish Actions (CMS UI)      │
-            │ • Deployed on: https://<your-vercel-app>.vercel.app          │
+            │ • Deployed on: https://cms-platform-phi.vercel.app/catalog   |
             └──────────────▲───────────────────────────────────────────────┘
-                        │ HTTPS (CORS enabled via FastAPI Middleware)
-                        │
+                           │ HTTPS (CORS enabled via FastAPI Middleware)
+                           │
             ┌──────────────┴──────────────────────────────────────────────-┐
             │                        BACKEND (Render)                      │
             │──────────────────────────────────────────────────────────────│
@@ -25,8 +25,8 @@ It allows admins to manage educational programs, terms, and lessons — with aut
             │ • Background Worker runs every 60s for scheduled publishing  │
             │ • Deployed on: https://cms-platform-backend.onrender.com     │
             └──────────────▲───────────────────────────────────────────────┘
-                        │ SQLAlchemy ORM + psycopg2 (DB Driver)
-                        │
+                           │ SQLAlchemy ORM + psycopg2 (DB Driver)
+                           │
             ┌──────────────┴──────────────────────────────────────────────┐
             │                    DATABASE (PostgreSQL - Render)           │
             │─────────────────────────────────────────────────────────────│
@@ -38,7 +38,6 @@ It allows admins to manage educational programs, terms, and lessons — with aut
 
 
 ## Tech Stack
-
 # Backend
 FastAPI (Python)
 SQLAlchemy ORM
@@ -52,7 +51,6 @@ Axios for API communication
 Hosted on Vercel
 
 ##  Local Setup
-
 ###  Clone the Repository
 git clone https://github.com/Jayasreerathod/CMS_Platform.git
 cd CMS_Platform
@@ -60,7 +58,6 @@ cd CMS_Platform
 ## Backend Setup 
 cd backend
 python -m venv venv
-
 venv\Scripts\activate     # on Windows
 
 ## Install Dependencies
@@ -88,13 +85,11 @@ Multi-language and assets examples included
 set DATABASE_URL=postgresql://<user>:<password>@<host>/<db_name>
 python seed_data.py
 
-
 ## Test users:
 admin@cms.com / admin123
 editor@cms.com / editor123
 
 ### Before Frontend Login
-
 Before logging in from the frontend, first confirm backend authentication works correctly:
 
 Open backend docs:
@@ -103,7 +98,6 @@ Open backend docs:
 Expand POST /auth/login
 
 Test login with the above credentials
-
 Once you receive a valid token and role, proceed to login through the frontend
 
 ## Run Backend Locally 
@@ -124,7 +118,8 @@ VITE_API_BASE_URL=https://cms-platform-backend.onrender.com
 ## Deployed URLs 
     
  **Frontend (Vercel)**    | 🔗 [https://cms-platform-phi.vercel.app](https://cms-platform-phi.vercel.app)                       
- **Backend API (Render)** | 🔗 [https://cms-platform-backend.onrender.com](https://cms-platform-backend.onrender.com)            **Docs**                 | 🔗 [https://cms-platform-backend.onrender.com/docs](https://cms-platform-backend.onrender.com/docs) 
+ **Backend API (Render)** | 🔗 [https://cms-platform-backend.onrender.com](https://cms-platform-backend.onrender.com)           
+ **Docs**                 | 🔗 [https://cms-platform-backend.onrender.com/docs](https://cms-platform-backend.onrender.com/docs) 
 
 
 ## Demo Flow
@@ -134,21 +129,17 @@ VITE_API_BASE_URL=https://cms-platform-backend.onrender.com
     Use the demo credentials:
         Admin : admin@cms.com / admin123
         Editor: editor@cms.com / editor123
-
 2  Create or Edit a Lesson/Program
     Navigate to CMS Dashboard
     Add a new Program and its associated Lessons
-
 3 Schedule or Publish the Program
     Editors can schedule lessons for future publishing
     Admins can immediately publish programs using the Publish button
-    When published, the status changes to published and appears in the public catalog 
-    
+    When published, the status changes to published and appears in the public catalog   
 4 Background Worker Executes Automatically
     A background worker runs every 60 seconds on the backend
     Once the scheduled time is reached →
     The lesson and its parent program are automatically published
-
 5 Verify
     Revisit Public Catalog(frontend)
     You’ll now see all published lessons and programs available to all users
