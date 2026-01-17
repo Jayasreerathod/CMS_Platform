@@ -119,7 +119,8 @@ VITE_API_BASE_URL=https://cms-platform-backend.onrender.com
     
  **Frontend (Vercel)**    | 🔗 [https://cms-platform-phi.vercel.app](https://cms-platform-phi.vercel.app)                       
  **Backend API (Render)** | 🔗 [https://cms-platform-backend.onrender.com](https://cms-platform-backend.onrender.com)           
- **Docs**                 | 🔗 [https://cms-platform-backend.onrender.com/docs](https://cms-platform-backend.onrender.com/docs) 
+ **Docs**                 | 🔗 [https://cms-platform-backend.onrender.com/docs](https://cms-platform-backend.onrender.com/docs)
+                          | 🔗 [https://cms-platform-backend.onrender.com/redoc](https://cms-platform-backend.onrender.com/redoc)
 
 
 ## Demo Flow
